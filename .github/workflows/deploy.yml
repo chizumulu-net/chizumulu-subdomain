@@ -1,0 +1,37 @@
+name: Deploy DNS records to Cloudflare
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "subdomains/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Get changed files
+        id: changed
+        run: |
+          FILES=$(git diff --name-only HEAD~1 HEAD -- 'subdomains/*.json')
+          echo "files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$FILES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Cloudflare
+        if: steps.changed.outputs.files != ''
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          ROOT_DOMAIN: chizumulu.net
+        run: node scripts/deploy.mjs ${{ steps.changed.outputs.files }}

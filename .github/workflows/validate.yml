@@ -1,0 +1,46 @@
+name: Validate subdomain PR
+
+on:
+  pull_request:
+    paths:
+      - "subdomains/**"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Get changed files
+        id: changed
+        run: |
+          FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'subdomains/*.json')
+          echo "files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$FILES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Schema validate
+        if: steps.changed.outputs.files != ''
+        run: node scripts/validate.mjs ${{ steps.changed.outputs.files }}
+
+      - name: Owner matches PR author
+        if: steps.changed.outputs.files != ''
+        env:
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: node scripts/check-pr.mjs ${{ steps.changed.outputs.files }}
+
+      - name: Build preview site
+        run: npm run build-preview
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: preview-site
+          path: dist-preview
