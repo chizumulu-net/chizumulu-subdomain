@@ -1,6 +1,0 @@
-{
-  "owner": { "username": "hjun1052", "email": "hjun7079@gmail.com" },
-  "records": [
-    { "type": "CNAME", "name": "@", "content": "example.com" }
-  ]
-}
