@@ -1,6 +1,12 @@
 import { loadJson, subdomainNameFromPath } from "./lib.mjs";
 
 const prAuthor = process.env.PR_AUTHOR;
+const ADMIN_USERS = new Set(
+  (process.env.ADMIN_USERS || "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+);
 const files = process.argv.slice(2);
 
 if (!prAuthor) {
@@ -18,6 +24,10 @@ for (const file of files) {
     continue;
   }
   const name = subdomainNameFromPath(file);
+  if (ADMIN_USERS.has(prAuthor.toLowerCase())) {
+    console.log(`[OK] ${file} (${name}) admin override by ${prAuthor}`);
+    continue;
+  }
   if (data.owner?.username?.toLowerCase() !== prAuthor.toLowerCase()) {
     failed = true;
     console.error(

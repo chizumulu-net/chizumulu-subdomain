@@ -35,6 +35,7 @@ jobs:
         if: steps.changed.outputs.files != ''
         env:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          ADMIN_USERS: ${{ vars.ADMIN_USERS }}
         run: node scripts/check-pr.mjs ${{ steps.changed.outputs.files }}
 
       - name: Build preview site

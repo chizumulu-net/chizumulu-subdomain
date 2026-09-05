@@ -50,24 +50,55 @@ function fqdn(subdomain, recordName) {
   return `${parts.join(".")}.${ROOT_DOMAIN}`;
 }
 
-async function upsertRecord(subdomain, record) {
-  const name = fqdn(subdomain, record.name);
-  const existing = await cf(`?type=${record.type}&name=${encodeURIComponent(name)}`);
-
-  const body = {
+// ttl 1 = Cloudflare "auto"; 스키마의 60~86400 범위는 사용자가 명시적으로
+// ttl을 지정했을 때만 적용되고, 생략 시엔 auto로 둔다.
+function recordBody(name, record) {
+  return {
     type: record.type,
     name,
     content: record.content,
     ttl: record.ttl ?? 1,
     proxied: record.type !== "TXT" ? Boolean(record.proxied) : false,
   };
+}
 
-  if (existing.length > 0) {
-    await cf(`/${existing[0].id}`, { method: "PUT", body: JSON.stringify(body) });
-    console.log(`[UPDATED] ${name} (${record.type})`);
-  } else {
-    await cf("", { method: "POST", body: JSON.stringify(body) });
-    console.log(`[CREATED] ${name} (${record.type})`);
+// 같은 type+name에 레코드가 여러 개(A 라운드로빈 등) 올 수 있으므로
+// content로 매칭해 upsert하고, JSON에 더 이상 없는 레코드는 삭제한다.
+async function reconcileGroup(subdomain, type, recordName, records) {
+  const name = fqdn(subdomain, recordName);
+  const existing = await cf(`?type=${type}&name=${encodeURIComponent(name)}`);
+  const remaining = [...existing];
+
+  for (const record of records) {
+    const body = recordBody(name, record);
+    const idx = remaining.findIndex((e) => e.content === record.content);
+    if (idx >= 0) {
+      const match = remaining.splice(idx, 1)[0];
+      await cf(`/${match.id}`, { method: "PUT", body: JSON.stringify(body) });
+      console.log(`[UPDATED] ${name} (${type}) -> ${record.content}`);
+    } else {
+      await cf("", { method: "POST", body: JSON.stringify(body) });
+      console.log(`[CREATED] ${name} (${type}) -> ${record.content}`);
+    }
+  }
+
+  for (const stale of remaining) {
+    await cf(`/${stale.id}`, { method: "DELETE" });
+    console.log(`[DELETED] ${name} (${type}) -> ${stale.content} (stale)`);
+  }
+}
+
+async function syncSubdomain(subdomain, data) {
+  const groups = new Map();
+  for (const record of data.records) {
+    record.proxied = record.proxied ?? data.proxied ?? false;
+    const key = `${record.type}|${record.name}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(record);
+  }
+  for (const [key, records] of groups) {
+    const [type, name] = key.split("|");
+    await reconcileGroup(subdomain, type, name, records);
   }
 }
 
@@ -84,19 +115,22 @@ async function deleteSubdomain(subdomain) {
 
 async function main() {
   const changed = process.argv.slice(2);
+  let failed = false;
   for (const file of changed) {
     const subdomain = subdomainNameFromPath(file);
-    if (!existsSync(file)) {
-      await deleteSubdomain(subdomain);
-      continue;
-    }
-    const data = loadJson(file);
-    data.proxied = data.proxied ?? false;
-    for (const record of data.records) {
-      record.proxied = record.proxied ?? data.proxied;
-      await upsertRecord(subdomain, record);
+    try {
+      if (!existsSync(file)) {
+        await deleteSubdomain(subdomain);
+        continue;
+      }
+      const data = loadJson(file);
+      await syncSubdomain(subdomain, data);
+    } catch (e) {
+      failed = true;
+      console.error(`[ERROR] ${file}: ${e.message}`);
     }
   }
+  if (failed) process.exit(1);
 }
 
 main().catch((e) => {
