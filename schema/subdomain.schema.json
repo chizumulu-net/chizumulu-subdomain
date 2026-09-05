@@ -50,7 +50,13 @@
             "minimum": 60,
             "maximum": 86400
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "type": { "const": "A" } } },
+            "then": { "properties": { "content": { "type": "string", "format": "ipv4" } } }
+          }
+        ]
       }
     },
     "proxied": {

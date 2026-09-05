@@ -12,7 +12,7 @@ if (!CF_API_TOKEN || !CF_ZONE_ID) {
 
 const API = `https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records`;
 
-async function cf(path, options = {}) {
+async function cfRaw(path, options = {}) {
   const res = await fetch(`${API}${path}`, {
     ...options,
     headers: {
@@ -25,7 +25,24 @@ async function cf(path, options = {}) {
   if (!json.success) {
     throw new Error(`Cloudflare API error: ${JSON.stringify(json.errors)}`);
   }
-  return json.result;
+  return json;
+}
+
+async function cf(path, options = {}) {
+  return (await cfRaw(path, options)).result;
+}
+
+async function listAllRecords() {
+  const all = [];
+  let page = 1;
+  while (true) {
+    const json = await cfRaw(`?page=${page}&per_page=100`);
+    all.push(...json.result);
+    const totalPages = json.result_info?.total_pages ?? 1;
+    if (page >= totalPages) break;
+    page++;
+  }
+  return all;
 }
 
 function fqdn(subdomain, recordName) {
@@ -55,9 +72,11 @@ async function upsertRecord(subdomain, record) {
 }
 
 async function deleteSubdomain(subdomain) {
-  const results = await cf(`?name.endswith=.${subdomain}.${ROOT_DOMAIN}`);
-  const apex = await cf(`?name=${subdomain}.${ROOT_DOMAIN}`);
-  for (const record of [...results, ...apex]) {
+  const apexName = `${subdomain}.${ROOT_DOMAIN}`;
+  const suffix = `.${apexName}`;
+  const all = await listAllRecords();
+  const toDelete = all.filter((r) => r.name === apexName || r.name.endsWith(suffix));
+  for (const record of toDelete) {
     await cf(`/${record.id}`, { method: "DELETE" });
     console.log(`[DELETED] ${record.name} (${record.type})`);
   }
