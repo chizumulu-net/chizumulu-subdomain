@@ -32,11 +32,20 @@ export function validateName(name) {
 
 export function validateRecords(records) {
   const errors = [];
-  const hasCname = records.some((r) => r.type === "CNAME");
-  const hasOther = records.some((r) => r.type !== "CNAME");
-  if (hasCname && hasOther) {
-    errors.push("CNAME 레코드는 같은 name에 A/TXT 등 다른 레코드와 공존 불가");
+
+  const byName = new Map();
+  for (const r of records) {
+    if (!byName.has(r.name)) byName.set(r.name, []);
+    byName.get(r.name).push(r);
   }
+  for (const [name, group] of byName) {
+    const hasCname = group.some((r) => r.type === "CNAME");
+    const hasOther = group.some((r) => r.type !== "CNAME");
+    if (hasCname && hasOther) {
+      errors.push(`"${name}": CNAME 레코드는 같은 name에 A/TXT 등 다른 레코드와 공존 불가`);
+    }
+  }
+
   const cnameNames = records.filter((r) => r.type === "CNAME").map((r) => r.name);
   const dup = cnameNames.find((n, i) => cnameNames.indexOf(n) !== i);
   if (dup) errors.push(`CNAME name "${dup}" 중복`);
