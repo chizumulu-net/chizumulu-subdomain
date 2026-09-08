@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import { loadJson, subdomainNameFromPath, validateName, validateRecords } from "./lib.mjs";
@@ -16,6 +17,11 @@ if (files.length === 0) {
 let failed = false;
 
 for (const file of files) {
+  if (!existsSync(file)) {
+    console.log(`[SKIP] ${file} (deleted)`);
+    continue;
+  }
+
   const name = subdomainNameFromPath(file);
   const errors = [];
 
