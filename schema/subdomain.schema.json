@@ -49,6 +49,10 @@
             "type": "integer",
             "minimum": 60,
             "maximum": 86400
+          },
+          "proxied": {
+            "type": "boolean",
+            "description": "레코드별 Cloudflare 프록시 여부, 생략 시 최상위 proxied 값을 따름"
           }
         },
         "allOf": [
