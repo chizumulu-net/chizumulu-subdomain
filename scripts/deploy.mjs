@@ -109,6 +109,28 @@ async function reconcileGroup(subdomain, type, recordName, records) {
   }
 }
 
+// 레코드 name별로 JSON에 남아있는 type 집합을 구해, Cloudflare에 있는
+// 그 외 type(예: A->CNAME으로 바뀐 경우 옛 A)을 먼저 지운다. reconcileGroup은
+// type+name이 그대로 유지되는 경우만 다루므로 type 자체가 바뀐 레코드는
+// 놓치고, Cloudflare가 같은 name에 A/CNAME 공존을 거부해 배포가 통째로
+// 실패한다.
+async function cleanupStaleTypes(subdomain, groups) {
+  const typesByName = new Map();
+  for (const key of groups.keys()) {
+    const [type, name] = key.split("|");
+    if (!typesByName.has(name)) typesByName.set(name, new Set());
+    typesByName.get(name).add(type);
+  }
+  for (const [recordName, types] of typesByName) {
+    const name = fqdn(subdomain, recordName);
+    const existing = await cf(`?name=${encodeURIComponent(name)}`);
+    for (const stale of existing.filter((r) => !types.has(r.type))) {
+      await cf(`/${stale.id}`, { method: "DELETE" });
+      console.log(`[DELETED] ${name} (${stale.type}) -> ${stale.content} (type changed)`);
+    }
+  }
+}
+
 async function syncSubdomain(subdomain, data) {
   const groups = new Map();
   for (const record of data.records) {
@@ -117,6 +139,7 @@ async function syncSubdomain(subdomain, data) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(record);
   }
+  await cleanupStaleTypes(subdomain, groups);
   for (const [key, records] of groups) {
     const [type, name] = key.split("|");
     await reconcileGroup(subdomain, type, name, records);
