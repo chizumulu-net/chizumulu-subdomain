@@ -43,3 +43,4 @@
 npm install
 node scripts/validate.mjs subdomains/<이름>.json
 ```
+# admin bypass test Tue Sep  8 21:04:59 KST 2026
