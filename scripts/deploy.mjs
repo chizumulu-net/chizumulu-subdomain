@@ -1,3 +1,8 @@
+// main에 merge된 subdomains/*.json 변경분을 실제 Cloudflare DNS 레코드로
+// 반영한다 (.github/workflows/deploy.yml의 push 트리거에서 실행됨).
+// 파일 하나 = 서브도메인 하나 = Cloudflare 레코드 여러 개일 수 있어서,
+// "JSON에 있는 상태"와 "Cloudflare에 있는 상태"를 diff해서 맞추는
+// reconcile 방식으로 동작한다 (생성/수정/삭제를 전부 여기서 판단).
 import { existsSync } from "node:fs";
 import { loadJson, subdomainNameFromPath } from "./lib.mjs";
 
@@ -18,6 +23,10 @@ async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Cloudflare API 호출 하나 = 여기 통과. 네트워크 에러/429(rate limit)/5xx는
+// 지수 백오프로 최대 3번까지 재시도한다. 4xx(요청 자체가 잘못된 경우, 예:
+// 스키마는 통과했지만 Cloudflare가 거부하는 값)는 재시도해봤자 똑같이
+// 실패하므로 즉시 에러를 던진다.
 async function cfRaw(path, options = {}) {
   for (let attempt = 0; ; attempt++) {
     let res;
@@ -66,6 +75,8 @@ async function listAllRecords() {
   return all;
 }
 
+// "@"는 서브도메인 자체(apex)를 가리킨다. 예: subdomain="foo", recordName="@"
+// -> "foo.chizumulu.net". recordName="www" -> "www.foo.chizumulu.net".
 function fqdn(subdomain, recordName) {
   const parts = recordName === "@" ? [subdomain] : [recordName, subdomain];
   return `${parts.join(".")}.${ROOT_DOMAIN}`;
@@ -131,6 +142,9 @@ async function cleanupStaleTypes(subdomain, groups) {
   }
 }
 
+// JSON 하나(서브도메인 하나)를 type+name별 그룹으로 나눠서 Cloudflare에
+// 반영한다. proxied는 레코드에 직접 안 적혀있으면 파일 최상위 값(전체
+// 서브도메인 기본값), 그것도 없으면 false로 떨어진다.
 async function syncSubdomain(subdomain, data) {
   const groups = new Map();
   for (const record of data.records) {
@@ -146,6 +160,10 @@ async function syncSubdomain(subdomain, data) {
   }
 }
 
+// 서브도메인 파일 자체가 삭제됐을 때(신청 철회) 호출된다. 이름/타입별로
+// 하나씩 찾아 지우는 대신, 그 서브도메인 밑에 있는 모든 레코드를(apex +
+// 하위 name 전부) 한 번에 조회해서 통째로 삭제한다 - JSON이 이미 사라져서
+// "어떤 name/type이 있었는지" 알 방법이 없기 때문.
 async function deleteSubdomain(subdomain) {
   const apexName = `${subdomain}.${ROOT_DOMAIN}`;
   const suffix = `.${apexName}`;
@@ -157,6 +175,10 @@ async function deleteSubdomain(subdomain) {
   }
 }
 
+// GitHub Actions에서 넘겨주는 변경된 subdomains/*.json 경로 목록을 순회한다.
+// 파일 하나 처리 실패해도 나머지 파일은 계속 배포하고(한 사람 신청 실수가
+// 다른 사람 배포까지 막지 않게), 마지막에 하나라도 실패했으면 워크플로
+// 전체를 실패 처리해서 관리자가 알아채게 한다.
 async function main() {
   const changed = process.argv.slice(2);
   let failed = false;

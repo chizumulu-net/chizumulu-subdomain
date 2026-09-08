@@ -1,3 +1,6 @@
+# PR로 들어온 subdomains/*.json을 검증하고 미리보기를 만든다.
+# 필수 status check로 등록해두면(branch protection) 이 job이 통과해야만
+# 머지 가능해진다 - 체크 이름은 job id인 "validate" 하나뿐이다.
 name: Validate subdomain PR
 
 on:
@@ -26,6 +29,9 @@ jobs:
 
       - run: npm ci
 
+      # PR 전체 범위(base...head, 3-dot diff)에서 바뀐 파일만 골라낸다.
+      # 신규/수정/삭제 파일 다 잡힘 - 삭제된 파일은 각 스크립트가 알아서
+      # existsSync로 스킵한다(validate.mjs, check-pr.mjs 참고).
       - name: Get changed files
         id: changed
         run: |
@@ -38,6 +44,9 @@ jobs:
         if: steps.changed.outputs.files != ''
         run: node scripts/validate.mjs ${{ steps.changed.outputs.files }}
 
+      # PR 작성자 == 파일 안 owner.username 인지 확인. 리포지토리 변수
+      # ADMIN_USERS(콤마구분, Settings > Secrets and variables > Actions)에
+      # 등록된 계정은 이 검사를 우회함.
       - name: Owner matches PR author
         if: steps.changed.outputs.files != ''
         env:
@@ -45,6 +54,9 @@ jobs:
           ADMIN_USERS: ${{ vars.ADMIN_USERS }}
         run: node scripts/check-pr.mjs ${{ steps.changed.outputs.files }}
 
+      # 개별 변경 파일이 아니라 subdomains/ 전체를 기준으로 매번 새로 빌드.
+      # 리뷰어가 이 PR 머지 후 전체 목록이 어떻게 되는지 한눈에 보게 하려는
+      # 것이라 변경분 유무와 무관하게 항상 실행한다.
       - name: Build preview site
         run: npm run build-preview
 

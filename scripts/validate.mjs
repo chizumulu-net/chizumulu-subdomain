@@ -1,3 +1,6 @@
+// PR에 올라온 subdomains/*.json 파일들을 스키마 + 이름 규칙 + 레코드 규칙
+// 순서로 검증한다. .github/workflows/validate.yml의 "Schema validate" 단계와
+// `npm run validate`(로컬 검증)에서 이 스크립트를 그대로 쓴다.
 import { existsSync } from "node:fs";
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
@@ -17,6 +20,8 @@ if (files.length === 0) {
 let failed = false;
 
 for (const file of files) {
+  // 서브도메인 삭제 PR(파일을 지우는 PR)에서는 검증할 내용이 없다.
+  // 예전엔 이 체크가 없어서 삭제 PR이 ENOENT로 무조건 실패했었다.
   if (!existsSync(file)) {
     console.log(`[SKIP] ${file} (deleted)`);
     continue;

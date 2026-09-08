@@ -1,3 +1,6 @@
+# main에 subdomains/**가 바뀌어 push되면(보통 PR merge) 실제 Cloudflare
+# DNS에 반영한다. CF_API_TOKEN/CF_ZONE_ID는 리포 Secrets에 미리 등록돼
+# 있어야 함 (Settings > Secrets and variables > Actions > Secrets).
 name: Deploy DNS records to Cloudflare
 
 on:
@@ -27,6 +30,12 @@ jobs:
 
       - run: npm ci
 
+      # github.event.before = 이 push 직전 main의 SHA. 한 번의 push에
+      # 커밋이 여러 개 묶여도(예: 여러 PR을 순서대로 fast-forward) 그
+      # 전부를 diff 범위로 잡는다. 예전엔 HEAD~1로 직전 커밋 하나만
+      # 봐서 batch push 시 앞쪽 커밋 변경분을 놓치는 버그가 있었다.
+      # before가 없거나(첫 push) 참조 못 하면 빈 트리와 비교해 전체를 새로
+      # 배포된 것처럼 취급한다.
       - name: Get changed files
         id: changed
         run: |

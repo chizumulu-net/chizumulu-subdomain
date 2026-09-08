@@ -1,3 +1,7 @@
+// PR을 연 사람(PR_AUTHOR)이 파일 안 owner.username과 같은지 검사한다.
+// 이걸로 "남의 서브도메인을 대신 등록/수정"하는 걸 막는다. ADMIN_USERS에
+// 있는 계정(리포지토리 vars.ADMIN_USERS, 콤마구분)은 이 검사를 우회한다
+// (관리자가 대신 처리해줄 때 쓰라고 만든 탈출구).
 import { existsSync } from "node:fs";
 import { loadJson, subdomainNameFromPath } from "./lib.mjs";
 

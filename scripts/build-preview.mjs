@@ -1,3 +1,7 @@
+// 현재 subdomains/*.json 전체를 훑어서 사람이 훑어볼 수 있는 HTML 표를
+// 만든다. deploy는 안 하고 실제 DNS엔 영향 없음 - PR 리뷰어가 "이 PR이
+// 머지되면 전체 등록 목록이 어떻게 되는지" 한눈에 보라고 만든 것.
+// validate.yml에서 artifact로 업로드해서 PR에 첨부한다.
 import { mkdirSync, writeFileSync, readdirSync } from "node:fs";
 import { loadJson } from "./lib.mjs";
 
