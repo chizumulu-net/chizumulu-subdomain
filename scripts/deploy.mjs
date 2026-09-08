@@ -12,20 +12,41 @@ if (!CF_API_TOKEN || !CF_ZONE_ID) {
 
 const API = `https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records`;
 
+const MAX_RETRIES = 3;
+
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function cfRaw(path, options = {}) {
-  const res = await fetch(`${API}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${CF_API_TOKEN}`,
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-  const json = await res.json();
-  if (!json.success) {
-    throw new Error(`Cloudflare API error: ${JSON.stringify(json.errors)}`);
+  for (let attempt = 0; ; attempt++) {
+    let res;
+    try {
+      res = await fetch(`${API}${path}`, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${CF_API_TOKEN}`,
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+      });
+    } catch (e) {
+      if (attempt >= MAX_RETRIES) throw e;
+      await sleep(2 ** attempt * 500);
+      continue;
+    }
+
+    if ((res.status === 429 || res.status >= 500) && attempt < MAX_RETRIES) {
+      await sleep(2 ** attempt * 500);
+      continue;
+    }
+
+    const json = await res.json();
+    if (!json.success) {
+      throw new Error(`Cloudflare API error: ${JSON.stringify(json.errors)}`);
+    }
+    return json;
   }
-  return json;
 }
 
 async function cf(path, options = {}) {

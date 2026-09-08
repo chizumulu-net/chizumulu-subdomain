@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { loadJson, subdomainNameFromPath } from "./lib.mjs";
 
 const prAuthor = process.env.PR_AUTHOR;
@@ -17,10 +18,14 @@ if (!prAuthor) {
 let failed = false;
 
 for (const file of files) {
+  if (!existsSync(file)) continue; // deleted file: nothing to own-check
+
   let data;
   try {
     data = loadJson(file);
-  } catch {
+  } catch (e) {
+    failed = true;
+    console.error(`[FAIL] ${file}: JSON 파싱 실패 (${e.message})`);
     continue;
   }
   const name = subdomainNameFromPath(file);
