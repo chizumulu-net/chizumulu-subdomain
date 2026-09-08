@@ -1,9 +1,0 @@
-{
-  "owner": {
-    "username": "hjun1052",
-    "email": "hjun7079@gmail.com"
-  },
-  "records": [
-    { "type": "A", "name": "@", "content": "1.1.1.1" }
-  ]
-}
