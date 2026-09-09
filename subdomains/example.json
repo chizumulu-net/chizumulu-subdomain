@@ -4,7 +4,6 @@
     "email": "admin@chizumulu.net"
   },
   "records": [
-    { "type": "CNAME", "name": "@", "content": "chizumulu-subdomain-preview.pages.dev" }
-  ],
-  "proxied": true
+    { "type": "A", "name": "@", "content": "185.199.108.153", "proxied": true }
+  ]
 }
