@@ -1,0 +1,12 @@
+{
+  "owner": {
+    "username": "chizumulu-net",
+    "email": "admin@chizumulu.net"
+  },
+  "records": [
+    { "type": "CNAME", "name": "@", "content": "your-target.example.com" },
+    { "type": "A", "name": "app", "content": "203.0.113.10" },
+    { "type": "TXT", "name": "_verify", "content": "verification-token-from-service" }
+  ],
+  "proxied": false
+}
