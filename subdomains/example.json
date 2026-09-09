@@ -1,0 +1,10 @@
+{
+  "owner": {
+    "username": "chizumulu-net",
+    "email": "admin@chizumulu.net"
+  },
+  "records": [
+    { "type": "CNAME", "name": "@", "content": "chizumulu-subdomain-preview.pages.dev" }
+  ],
+  "proxied": true
+}
