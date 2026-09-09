@@ -19,10 +19,11 @@
 }
 ```
 
-   여러 레코드 타입을 조합한 예시는 [`examples/example.json`](examples/example.json) 참고 (이 파일은 `subdomains/`가 아니라 실제 배포되지 않음).
 3. PR을 보냅니다. GitHub Actions가 형식을 자동 검증합니다.
 4. PR에 프리뷰 사이트 링크(Cloudflare Pages)가 달립니다. 관리자가 신청 내용을 검토합니다.
 5. 머지되면 Cloudflare에 DNS 레코드가 자동으로 생성/갱신됩니다.
+
+> 여러 레코드 타입을 조합한 예시는 [`examples/example.json`](examples/example.json) 참고 (이 파일은 `subdomains/`가 아니라 실제 배포되지 않음).
 
 ## 지원 레코드 타입
 
