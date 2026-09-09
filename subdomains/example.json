@@ -1,0 +1,9 @@
+{
+  "owner": {
+    "username": "chizumulu-net",
+    "email": "admin@chizumulu.net"
+  },
+  "records": [
+    { "type": "CNAME", "name": "@", "content": "github.com" }
+  ]
+}
